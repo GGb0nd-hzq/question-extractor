@@ -116,9 +116,16 @@ def main():
         page_num = page_data["page"]
         print(f"  第 {page_num}/{len(pages)} 页...", end=" ", flush=True)
         questions = api.extract(page_data["image"], page_num)
-        print(f"→ {len(questions)} 题")
 
-        # 为每道题裁切页面截图
+        # 先过滤伪题目
+        before = len(questions)
+        questions = [q for q in questions if not _is_instruction(q)]
+        if before != len(questions):
+            print(f"→ {len(questions)} 题 (过滤{before-len(questions)}条说明)")
+        else:
+            print(f"→ {len(questions)} 题")
+
+        # 过滤后再裁切截图（数量对应）
         if questions:
             crops = img_ext.crop_all_questions(
                 page_data["image"], len(questions)
@@ -183,6 +190,29 @@ def main():
         if q.get("answer"):
             print(f"         答案: {q['answer']}")
         print()
+
+
+def _is_instruction(q: dict) -> bool:
+    """判断是否为考试说明而非真实题目"""
+    content = q.get("content", "")
+    section = q.get("section") or ""
+
+    # 纯说明关键词
+    instr_words = [
+        "答卷前", "注意事项", "回答选择题时", "回答非选择题时",
+        "用铅笔", "用橡皮", "涂黑", "选涂", "写在", "准考证",
+        "姓名", "班级", "学校", "满分", "考试时间", "祝考试顺利",
+        "本试卷", "可能用到的", "相对原子质量",
+    ]
+    for w in instr_words:
+        if w in content:
+            return True
+
+    # section 本身不是题目（但保留其存在以维持顺序）
+    if content.startswith("选择题：") or content.startswith("非选择题："):
+        return True
+
+    return False
 
 
 if __name__ == "__main__":

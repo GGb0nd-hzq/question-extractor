@@ -31,6 +31,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from src.pdf_processor import PDFProcessor
 from src.api_extractor import APIExtractor
+from src.image_extractor import ImageExtractor
 from src.output_formatter import format_output, save_json, export_bot_db
 
 
@@ -107,6 +108,8 @@ def main():
 
     api = APIExtractor(api_key=api_key, base_url=api_base,
                        model=model, max_tokens=max_tokens)
+    img_ext = ImageExtractor()
+    crops_dir = "output/crops"
 
     all_questions = []
     for page_data in pages:
@@ -114,6 +117,16 @@ def main():
         print(f"  第 {page_num}/{len(pages)} 页...", end=" ", flush=True)
         questions = api.extract(page_data["image"], page_num)
         print(f"→ {len(questions)} 题")
+
+        # 为每道题裁切页面截图
+        if questions:
+            crops = img_ext.crop_all_questions(
+                page_data["image"], len(questions)
+            )
+            paths = img_ext.save(crops, crops_dir, page_num)
+            for q, path in zip(questions, paths):
+                q["images"] = [path]
+
         all_questions.extend(questions)
 
     if not all_questions:

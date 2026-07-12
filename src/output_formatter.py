@@ -1,7 +1,6 @@
 """输出格式化 — JSON + Bot 数据库"""
 
 import json
-import re
 from typing import List
 from pathlib import Path
 from datetime import datetime
@@ -48,19 +47,9 @@ def export_bot_db(questions: List[dict], output_path: str = "output/bot_db.json"
         e = {"id": f"Q{q['id']:04d}", "type": q["type"], "content": q["content"],
              "options": q.get("options", []), "images": q.get("images", []),
              "has_image": q.get("has_image", False),
-             "answer": q.get("answer"), "explanation": q.get("explanation"),
-             "keywords": _keywords(q["content"])}
+             "answer": q.get("answer"), "explanation": q.get("explanation")}
         if q.get("sub_questions"):
             e["sub_questions"] = q["sub_questions"]
         entries.append(e)
     save_json({"version": "4.0", "updated_at": datetime.now().isoformat(),
                "total": len(questions), "entries": entries}, output_path)
-
-
-def _keywords(text: str) -> List[str]:
-    cleaned = re.sub(r'[^一-鿿\w↑↓→←⇌]', ' ', text)
-    words, seen, result = cleaned.split(), set(), []
-    for w in words:
-        if len(w) >= 2 and w not in seen:
-            seen.add(w); result.append(w)
-    return result[:10]

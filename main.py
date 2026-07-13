@@ -125,16 +125,32 @@ def main():
         else:
             print(f"→ {len(questions)} 题")
 
-        # 过滤后再裁切截图（数量对应）
+        # 裁切截图（A3自动分栏 + 30%重叠防截断）
         if questions:
-            crops = img_ext.crop_all_questions(
-                page_data["image"], len(questions)
-            )
-            paths = img_ext.save(crops, crops_dir, page_num)
-            for q, path in zip(questions, paths):
-                q["images"] = [path]
+            top_level = [q for q in questions if q["type"] != "sub_question"]
+            if top_level:
+                crops = img_ext.crop_by_count(page_data["image"], len(top_level))
+                paths = img_ext.save(crops, crops_dir, page_num)
+                for q, path in zip(top_level, paths):
+                    q["images"] = [path]
 
         all_questions.extend(questions)
+
+    # 后处理：孤立的 sub_question 合并到前一道大题/填空题
+    merged = []
+    for q in all_questions:
+        if q["type"] == "sub_question" and merged:
+            parent = merged[-1]
+            parent.setdefault("sub_questions", []).append({
+                "content": q["content"],
+                "answer": q.get("answer"),
+            })
+            # 继承截图（子题用父题的截图）
+            if q.get("images") and not parent.get("images"):
+                parent["images"] = q["images"]
+            continue
+        merged.append(q)
+    all_questions = merged
 
     if not all_questions:
         print("\n未识别到任何题目，请检查:")
@@ -159,10 +175,14 @@ def main():
     }
 
     type_stats = {}
+    sub_total = 0
     for q in all_questions:
         t = q["type"]; type_stats[t] = type_stats.get(t, 0) + 1
+        sub_total += len(q.get("sub_questions", []))
 
     print(f"  共 {len(all_questions)} 道题")
+    if sub_total:
+        print(f"  其中含 {sub_total} 道小题")
     for t, c in sorted(type_stats.items()):
         print(f"    {type_cn.get(t, t)}: {c}")
 

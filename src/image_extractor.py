@@ -49,8 +49,8 @@ class ImageExtractor:
         if n <= 0:
             return []
 
-        # 每道题占区域 = 页面高度 / n，额外扩展 40% 防截断
-        crop_h = int(h / n * 1.4)
+        # 每道题占区域 = 页面高度 / n，额外扩展 60% 防截断大题
+        crop_h = int(h / n * 1.6)
 
         crops = []
         for i in range(n):

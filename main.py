@@ -136,7 +136,7 @@ def main():
 
         all_questions.extend(questions)
 
-    # 后处理：孤立的 sub_question 合并到前一道大题/填空题
+    # 后处理1: 孤立的 sub_question 合并到前一道大题
     merged = []
     for q in all_questions:
         if q["type"] == "sub_question" and merged:
@@ -145,12 +145,27 @@ def main():
                 "content": q["content"],
                 "answer": q.get("answer"),
             })
-            # 继承截图（子题用父题的截图）
             if q.get("images") and not parent.get("images"):
                 parent["images"] = q["images"]
             continue
         merged.append(q)
     all_questions = merged
+
+    # 后处理2: 跨页题目合并（同题号+不同截图→合并截图数组）
+    merged2 = []
+    for q in all_questions:
+        if merged2 and q.get("number_raw") == merged2[-1].get("number_raw"):
+            # 同一道题跨页了，合并图片
+            prev = merged2[-1]
+            prev.setdefault("images", []).extend(q.get("images", []))
+            # 合并内容（后面的内容追加）
+            if q.get("content") and q["content"] not in prev["content"]:
+                prev["content"] += "\n" + q["content"]
+            # 合并子题
+            prev.setdefault("sub_questions", []).extend(q.get("sub_questions", []))
+            continue
+        merged2.append(q)
+    all_questions = merged2
 
     if not all_questions:
         print("\n未识别到任何题目，请检查:")
